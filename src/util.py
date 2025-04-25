@@ -7,6 +7,11 @@ def config_db(serverip = "localhost",port=27017, db_name = "clonify_db", collect
     client = MongoClient(serverip, port)
     db = client[db_name]
     collection = db[collection_name]
+    # Check if the collection exists
+    if collection_name in db.list_collection_names():
+        print(f"Collection {collection_name} already exists.")
+        db.drop_collection(collection_name)
+        print(f"Collection {collection_name} dropped.")
     return client, collection
 
 
@@ -27,13 +32,24 @@ def load_airr_data(tsv_path, collection):
         collection (pymongo.collection.Collection): MongoDB collection to insert data into.
     """
     row_processed = 0
+    skipped_rows = 0
     with open(tsv_path, 'r') as f:
         reader = csv.DictReader(f, delimiter='\t')
         for row in reader:
+            v_gene_first = row['v_call'].split(',')[0].strip()
+            j_gene_first = row['j_call'].split(',')[0].strip()
+            # Skip rows with empty junction sequences
+            if not row['junction_aa'] or not row['junction']:
+               skipped_rows += 1
+               continue
+            # Skip rows with missing V or J genes
+            if not v_gene_first or not j_gene_first:
+                skipped_rows += 1
+                continue
             doc = {
                 'seq_id': row['sequence_id'],
-                'v_gene': { 'full': row['v_call'] },
-                'j_gene': { 'full': row['j_call'] },
+                'v_gene': {'full': v_gene_first},
+                'j_gene': {'full': j_gene_first},
                 'junc_aa': row.get('junction_aa', ''),
                 'junc_nt': row.get('junction', ''),
                 'var_muts_nt': {
@@ -46,6 +62,8 @@ def load_airr_data(tsv_path, collection):
             if row_processed % 1000 == 0:
                 print(f"Processed {row_processed} rows...")
 
+    print(f"Finished processing. Total rows processed: {row_processed}, skipped rows: {skipped_rows}")
+    
 def main():
     # take command line arguments
     parser = argparse.ArgumentParser(description='Load AIRR data into MongoDB.')

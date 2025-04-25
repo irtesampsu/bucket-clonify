@@ -1,0 +1,18 @@
+
+
+========================================
+processing collection: NBD4681
+========================================
+
+Querying MongoDB (db: clonify_db, collection: NBD4681) for the input sequences...
+...done. Retrieved 0 sequences.
+
+
+
+========================================
+processing collection: antibodies_7k
+========================================
+
+Querying MongoDB (db: clonify_db, collection: antibodies_7k) for the input sequences...
+...done. Retrieved 0 sequences.
+
