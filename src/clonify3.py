@@ -254,6 +254,8 @@ def analyze_collection(coll):
         split_seqs = split_by_gene(seqs)
     elif args.split_by == 'fam':
         split_seqs = split_by_fam(seqs)
+    
+
     print('Sorting sequences into clonal families...')
     clusters = {}
     for vh in sorted(split_seqs.keys()):

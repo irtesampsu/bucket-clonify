@@ -1,3 +1,4 @@
+import os
 import argparse
 import csv
 from pymongo import MongoClient
@@ -12,6 +13,7 @@ def config_db(serverip = "localhost",port=27017, db_name = "clonify_db", collect
         print(f"Collection {collection_name} already exists.")
         db.drop_collection(collection_name)
         print(f"Collection {collection_name} dropped.")
+
     return client, collection
 
 
@@ -67,40 +69,43 @@ def load_airr_data(tsv_path, collection):
 def main():
     # take command line arguments
     parser = argparse.ArgumentParser(description='Load AIRR data into MongoDB.')
-    parser.add_argument('--tsv_path', type=str, help='Path to the AIRR TSV file')
+    parser.add_argument('--tsv_folder', type=str, help='Path to the AIRR TSV file')
     parser.add_argument('--serverip', type=str, required=True, help='MongoDB server IP address')
     parser.add_argument('--port', type=int, default=27017, help='MongoDB server port') # default is 27017
     parser.add_argument('--db', type=str, default='clonify_db', help='MongoDB database name')
-    parser.add_argument('--collection', type=str, default='antibodies_7k', help='MongoDB collection name')
+    # parser.add_argument('--collection', type=str, default='antibodies_7k', help='MongoDB collection name')
 
     print("Parsing arguments...")
     args = parser.parse_args()
-    tsv_path = args.tsv_path 
+    tsv_folder = args.tsv_folder
     serverip = args.serverip 
     port = args.port
     db_name = args.db
-    collection_name = args.collection
+    # collection_name = args.collection
 
-    print(f"Loading AIRR data from {tsv_path} into MongoDB...")
-    # Check if the TSV file exists
-    try:
-        with open(tsv_path, 'r') as f:
-            pass
-    except FileNotFoundError:
-        print(f"File {tsv_path} not found.")
+    print(f"Loading AIRR data from {tsv_folder} into MongoDB...")
+    # Check if the TSV directory exists
+    if not os.path.exists(tsv_folder):
+        print(f"Directory {tsv_folder} does not exist.")
         return
+    # Get all tsv files from tsv_folder
+    tsv_files = [f for f in os.listdir(tsv_folder) if f.endswith('.tsv')]
+    if not tsv_files:
+        print(f"No TSV files found in {tsv_folder}.")
+        return
+    # Load each TSV file into MongoDB
+    for tsv_file in tsv_files:
+        collection_name = tsv_file.split('.')[0]
+        client, collection = config_db(serverip, port, db_name, collection_name)
+        print(f"Connected to MongoDB at {serverip}:{port}, database: {db_name}, collection: {collection_name}")
+        tsv_path = os.path.join(tsv_folder, tsv_file)
+        load_airr_data(tsv_path, collection)
+        print(f"Loaded {tsv_file} into MongoDB collection {collection_name}")
     
-    # Configure database
-    client, collection = config_db(serverip, port, db_name, collection_name)
-    print(f"Connected to MongoDB at {serverip}:{port}, database: {db_name}, collection: {collection_name}")
-
-    # Load AIRR data into MongoDB
-    load_airr_data(tsv_path, collection)
-
     # Close the database connection
     client.close()
 
-print("Done loading AIRR data into MongoDB.")
+
 
 if __name__ == "__main__":
     main()
