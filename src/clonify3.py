@@ -271,7 +271,7 @@ def analyze_collection(coll):
             bucket_id = 1
             for bucket in buckets:
                 if len(bucket) > 1:
-                    clusters.update(make_clusters(bucket, vh + str(bucket_id)))
+                    clusters.update(make_clusters(bucket, vh + "_b" + str(bucket_id)))
                 bucket_id += 1
         else:
             clusters.update(make_clusters(split_seqs[vh], vh))
