@@ -22,6 +22,7 @@ from contextlib import contextmanager
 from faiss_bucketing import faiss_bucketing
 from bk_tree import bucket_by_bktree
 
+import pickle
 
 @contextmanager
 def time_block(name="Block"):
@@ -334,7 +335,7 @@ def analyze_collection(coll):
     write_csv(args.output, coll, clusters)
     if args.output:
         vprint('Writing clonal families to file...')
-        write_output(args.output, coll, clusters)
+        write_output_modified(args.output, coll, clusters)
         vprint('...done.\n')
     else:
         vprint('No output directory was provided. Lineage assignments are not being written to file.\n')
