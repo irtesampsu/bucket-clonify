@@ -27,7 +27,7 @@ def time_block(name="Block"):
     start = time.time()
     yield
     end = time.time()
-    print(f"[TIMER] {name} executed in {end - start:.4f} seconds.")
+    vprint(f"[TIMER] {name} executed in {end - start:.4f} seconds.")
 
 def time_function(func):
     @wraps(func)
@@ -52,10 +52,17 @@ parser.add_argument('-z', '--no_split', action='store_true', default=False)
 parser.add_argument('-n', '--nt', dest='is_aa', action='store_false', default=True)
 parser.add_argument('-u', '--no_update', dest='update', action='store_false', default=True)
 parser.add_argument('-k', '--chunksize', type=int, default=500)
-# parser.add_argument('-b', '--bucket', action='store_true', default=False)
-parser.add_argument('-b', '--bucket', default='none')
+parser.add_argument('-b', '--bucket', default='none', choices=['none', 'faiss', 'minhash'])  # Updated choices
+parser.add_argument('-kmer', default=5, type=int)
+parser.add_argument('-nperm', default=16, type=int)
+parser.add_argument('--verbose', action='store_true', default=False) # Only print if verbose
 args = parser.parse_args()
 
+
+def vprint(*args_, **kwargs):
+    if args.verbose:
+        print(*args_, **kwargs)
+# Set the random seed for reproducibility
 
 class Seq:
     def __init__(self, data, junc_query):
@@ -203,9 +210,9 @@ def build_cluster_dict(count, vh):
 @time_function
 def build_matrix(ichunks, chunksize, size, chunk_count):
     matrix = np.zeros((size, size))
-    print(f'number of processes: {chunk_count}')
-    print(f'matrix: {matrix.shape}')
-    print(f'total calculations: {matrix.size}')
+    vprint(f'number of processes: {chunk_count}')
+    vprint(f'matrix: {matrix.shape}')
+    vprint(f'total calculations: {matrix.size}')
     p = Pool(processes=chunk_count)
     for x, seq in enumerate(grouper_nofill(chunk_count, ichunks)):
         result = p.imap(clonify, seq)
@@ -225,21 +232,21 @@ def squareform(matrix):
 
 def make_clusters(input_seqs, vh):
     chunksize = get_chunksize(input_seqs)
-    print(f'Chunksize is: {chunksize}')
+    vprint(f'Chunksize is: {chunksize}')
     chunks = chunk_maker(chunksize, input_seqs)
     iter_chunks = itertools.product(chunks, repeat=2)
     distMatrix = build_matrix(iter_chunks, chunksize, len(input_seqs), len(chunks))
-    print('condensing the distance matrix...')
+    vprint('condensing the distance matrix...')
     con_distMatrix = squareform(distMatrix)
-    print('clustering...')
+    vprint('clustering...')
 
     with time_block(name="Clustering"):
         linkageMatrix = fc.linkage(np.asarray(con_distMatrix), method='average', preserve_input=False)
         flatCluster = fcluster(linkageMatrix, args.distance_cutoff, criterion='distance')
     
-    print('building cluster dict...')
+    vprint('building cluster dict...')
     clusters = build_cluster_dict(max(flatCluster) + 1, vh)
-    print('assigning sequences to clusters...')
+    vprint('assigning sequences to clusters...')
     for s, cl in enumerate(flatCluster):
         clusters[f'lineage_{vh}_{cl}'].append(input_seqs[s])
     return clusters
@@ -249,10 +256,10 @@ def analyze_collection(coll):
     from bucketing import build_lsh_index, assign_to_best_bucket
     startTime = time.time()
     bucket_lengths = []
-    print(f'\n\n========================================\nprocessing collection: {coll}\n========================================\n')
-    print(f'Querying MongoDB (db: {args.db}, collection: {coll}) for the input sequences...')
+    vprint(f'\n\n========================================\nprocessing collection: {coll}\n========================================\n')
+    vprint(f'Querying MongoDB (db: {args.db}, collection: {coll}) for the input sequences...')
     seqs = get_seqs(args.db, coll)
-    print(f'...done. Retrieved {len(seqs)} sequences.\n')
+    vprint(f'...done. Retrieved {len(seqs)} sequences.\n')
     if len(seqs) < 2:
         return False
     split_seqs = {'v0': seqs}
@@ -262,25 +269,25 @@ def analyze_collection(coll):
         split_seqs = split_by_fam(seqs)
     
 
-    print('Sorting sequences into clonal families...')
+    vprint('Sorting sequences into clonal families...')
     clusters = {}
     total_seq = 0
     single_bucket = 0
     for vh in sorted(split_seqs.keys()):
         if len(split_seqs[vh]) <= 1:
             continue
-        print(f'\n--------\n{vh}\n--------')
+        vprint(f'\n--------\n{vh}\n--------')
         
         # clusters.update(make_clusters(split_seqs[vh], vh))
 
         if args.bucket == 'none':
             clusters.update(make_clusters(split_seqs[vh], vh))
         elif args.bucket == 'faiss':
-            buckets = faiss_bucketing(split_seqs[vh], k=5)
+            buckets = faiss_bucketing(split_seqs[vh], k=args.kmer)
             bucket_lengths_v = [len(bucket) for bucket in buckets]
             bucket_lengths.append(bucket_lengths_v)
-            print(f"Bucket lengths for vh: {vh}", sorted(bucket_lengths_v))
-            print(f"Total seqs:{len(split_seqs[vh])}, Buckets: {len(buckets)}, Average Bucket lengths: {sum(bucket_lengths_v) / len(bucket_lengths_v) if bucket_lengths_v else 0}")
+            vprint(f"Bucket lengths for vh: {vh}", sorted(bucket_lengths_v))
+            vprint(f"Total seqs:{len(split_seqs[vh])}, Buckets: {len(buckets)}, Average Bucket lengths: {sum(bucket_lengths_v) / len(bucket_lengths_v) if bucket_lengths_v else 0}")
             bucket_id = 1
             for bucket in buckets:
                 if len(bucket) > 1:
@@ -290,36 +297,38 @@ def analyze_collection(coll):
                     single_bucket += len(bucket)
                 bucket_id += 1
         elif args.bucket == 'minhash':
-            lsh, mh_table = build_lsh_index(split_seqs[vh])
+            lsh, mh_table = build_lsh_index(split_seqs[vh], k=args.kmer, num_perm=args.nperm)
             buckets = assign_to_best_bucket(split_seqs[vh], lsh, mh_table)
+            bucket_id = 1
             for bucket in buckets:
                 if len(bucket) > 1:
                     total_seq += len(bucket)
-                    clusters.update(make_clusters(bucket, vh))
+                    clusters.update(make_clusters(bucket, vh + "_b" + str(bucket_id)))
                 else:
                     single_bucket += len(bucket)
-    print('...done.\n')
+                bucket_id += 1
+    vprint('...done.\n')
     
-    print(f'Total seqs considered {total_seq}\n')
-    print(f'Single bucket: {single_bucket}')
+    vprint(f'Total seqs considered {total_seq}\n')
+    vprint(f'Single bucket: {single_bucket}')
     
     if args.update:
-        print('Updating MongoDB...')
+        vprint('Updating MongoDB...')
     else:
-        print('Calculating cluster statistics...')
+        vprint('Calculating cluster statistics...')
     stats = update_db(args.db, coll, clusters)
-    print('...done.\n')
+    vprint('...done.\n')
     if args.output:
-        print('Writing clonal families to file...')
+        vprint('Writing clonal families to file...')
         write_output(args.output, coll, clusters)
-        print('...done.\n')
+        vprint('...done.\n')
     else:
-        print('No output directory was provided. Lineage assignments are not being written to file.\n')
-    print(f'Querying MongoDB took {round(time.time() - startTime, 2)} seconds.')
-    print(f"{len(seqs)} sequences were segregated into {stats[0]} clonal families.")
-    print(f'The average cluster size was {stats[2]:.2f}.')
-    print(f'The largest cluster contains {stats[3]} sequences.')
-    print(f'{stats[1]} sequences were assigned to clonal families ({100.0 * stats[1] / len(seqs):.2f}%).\n\n')
+        vprint('No output directory was provided. Lineage assignments are not being written to file.\n')
+    vprint(f'Querying MongoDB took {round(time.time() - startTime, 2)} seconds.')
+    vprint(f"{len(seqs)} sequences were segregated into {stats[0]} clonal families.")
+    vprint(f'The average cluster size was {stats[2]:.2f}.')
+    vprint(f'The largest cluster contains {stats[3]} sequences.')
+    vprint(f'{stats[1]} sequences were assigned to clonal families ({100.0 * stats[1] / len(seqs):.2f}%).\n\n')
     return bucket_lengths
 
 def write_output(out_dir, collection, data):
