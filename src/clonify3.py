@@ -19,6 +19,8 @@ from itertools import zip_longest
 import time
 from functools import wraps
 from contextlib import contextmanager
+from faiss_bucketing import faiss_bucketing
+
 
 @contextmanager
 def time_block(name="Block"):
@@ -50,6 +52,8 @@ parser.add_argument('-z', '--no_split', action='store_true', default=False)
 parser.add_argument('-n', '--nt', dest='is_aa', action='store_false', default=True)
 parser.add_argument('-u', '--no_update', dest='update', action='store_false', default=True)
 parser.add_argument('-k', '--chunksize', type=int, default=500)
+# parser.add_argument('-b', '--bucket', action='store_true', default=False)
+parser.add_argument('-b', '--bucket', default='none')
 args = parser.parse_args()
 
 
@@ -265,21 +269,30 @@ def analyze_collection(coll):
         if len(split_seqs[vh]) <= 1:
             continue
         print(f'\n--------\n{vh}\n--------')
-        # if vh == 'v4-61':
-        #     for seq in split_seqs[vh]:
-        #         print(seq.junc)
-
-        # lsh, mh_table = build_lsh_index(split_seqs[vh])
-        # buckets = assign_to_best_bucket(split_seqs[vh], lsh, mh_table)
-        # for bucket in buckets:
-        #     if len(bucket) > 1:
-        #         total_seq += len(bucket)
-        #         clusters.update(make_clusters(bucket, vh))
-        #     else:
-        #         single_bucket += len(bucket)
         
-        total_seq += len(split_seqs[vh])
-        clusters.update(make_clusters(split_seqs[vh], vh))
+        # clusters.update(make_clusters(split_seqs[vh], vh))
+
+        if args.bucket == 'none':
+            clusters.update(make_clusters(split_seqs[vh], vh))
+        elif args.bucket == 'faiss':
+            buckets = faiss_bucketing(split_seqs[vh], k=5)
+            bucket_id = 1
+            for bucket in buckets:
+                if len(bucket) > 1:
+                    total_seq += len(bucket)
+                    clusters.update(make_clusters(bucket, vh + str(bucket_id)))
+                else:
+                    single_bucket += len(bucket)
+                bucket_id += 1
+        elif args.bucket == 'minhash':
+            lsh, mh_table = build_lsh_index(split_seqs[vh])
+            buckets = assign_to_best_bucket(split_seqs[vh], lsh, mh_table)
+            for bucket in buckets:
+                if len(bucket) > 1:
+                    total_seq += len(bucket)
+                    clusters.update(make_clusters(bucket, vh))
+                else:
+                    single_bucket += len(bucket)
     print('...done.\n')
     
     print(f'Total seqs considered {total_seq}\n')
@@ -317,9 +330,10 @@ def write_output(out_dir, collection, data):
 
 
 def main():
+    total_start_time = time.time()
     for c in get_collections():
         analyze_collection(c)
-
+    print(f'Total execution time: {time.time() - total_start_time:.2f} seconds.')
 
 if __name__ == '__main__':
     main()
