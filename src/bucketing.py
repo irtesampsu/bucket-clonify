@@ -11,7 +11,7 @@ def compute_minhash(kmers, num_perm=128):
         m.update(kmer.encode('utf-8'))
     return m
 
-def build_lsh_index(seqs, k=7, num_perm=128, threshold=0.5):
+def build_lsh_index(seqs, k=21, num_perm=128, threshold=0.8):
     lsh = MinHashLSH(threshold=threshold, num_perm=num_perm)
     mh_table = {}
     for seq in seqs:
