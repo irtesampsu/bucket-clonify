@@ -3,7 +3,7 @@
 To run the `util.py` script, use the following command in your terminal:
 
 ```bash
-python src/util.py --tsv_path igblastout/NBD4681.tsv --serverip localhost --port 27017 --db clonify_db --collection NBD4681
+python src/util.py --tsv_folder igblastout/7k_per_donor/ --serverip localhost --port 27017 --db clonify_db 
 ```
 ## Running `clonify3.py`
 
