@@ -1,5 +1,6 @@
 from datasketch import MinHash, MinHashLSH
 from collections import defaultdict
+from clonify3 import vprint
 import hashlib
 
 def get_kmers(seq, k=5):
@@ -28,11 +29,11 @@ def assign_to_best_bucket(seqs, lsh, mh_table):
     bucket_map = {}
     bucket_key = 0
     
-    already_considered_seqs_list = []
+    already_considered_seqs = set()
     single_entry_list = []
     for seq in seqs:
-        # For now, if some seq has already been into some bucket, we do not cosider it again
-        if seq.id in already_considered_seqs_list:
+        # For now, if some seq has already been into some bucket, we do not consider it again
+        if seq.id in already_considered_seqs:
             continue
         else:
             bucket_key += 1
@@ -43,17 +44,17 @@ def assign_to_best_bucket(seqs, lsh, mh_table):
             #TODO: Discuss: We can skip this case without adding
             # But we are getting rid of sequences which might not be a good for cluster comparison
             single_entry_list.append(candidates[0])
-            already_considered_seqs_list.append(candidates[0].id)
+            already_considered_seqs.add(candidates[0].id)
             continue
         # we can fix the threshold when we build the index, so no filtering here
         selected_cand_list = []
         candidates_id_list = []
         for candidate in candidates:
-            if candidate.id not in already_considered_seqs_list:
+            if candidate.id not in already_considered_seqs:
                 selected_cand_list.append(candidate)
                 candidates_id_list.append(candidate.id)
         
-        already_considered_seqs_list += candidates_id_list
+        already_considered_seqs.update(candidates_id_list)  # Use update instead of +=
         # print(candidates_id_list)
         # print(len(candidates))
         # print(candidates)
@@ -68,5 +69,5 @@ def assign_to_best_bucket(seqs, lsh, mh_table):
         # only one element, instead of skipping it, adding it to the first bucket
         bucket_map[1].append(single_entry_list[0])
     bucket_mem_count_list = [len(bucket_map[key]) for key in bucket_map.keys()]
-    print('Number of elements inside bucket: ', bucket_mem_count_list)
+    vprint('Number of elements inside bucket: ', bucket_mem_count_list)
     return list(bucket_map.values())
