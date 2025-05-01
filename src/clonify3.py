@@ -52,7 +52,8 @@ parser.add_argument('-z', '--no_split', action='store_true', default=False)
 parser.add_argument('-n', '--nt', dest='is_aa', action='store_false', default=True)
 parser.add_argument('-u', '--no_update', dest='update', action='store_false', default=True)
 parser.add_argument('-k', '--chunksize', type=int, default=500)
-parser.add_argument('-b', '--bucket', action='store_true', default=False)
+# parser.add_argument('-b', '--bucket', action='store_true', default=False)
+parser.add_argument('-b', '--bucket', default='none')
 args = parser.parse_args()
 
 
@@ -245,6 +246,7 @@ def make_clusters(input_seqs, vh):
 
 
 def analyze_collection(coll):
+    from bucketing import build_lsh_index, assign_to_best_bucket
     startTime = time.time()
     bucket_lengths = []
     print(f'\n\n========================================\nprocessing collection: {coll}\n========================================\n')
@@ -262,12 +264,18 @@ def analyze_collection(coll):
 
     print('Sorting sequences into clonal families...')
     clusters = {}
+    total_seq = 0
+    single_bucket = 0
     for vh in sorted(split_seqs.keys()):
         if len(split_seqs[vh]) <= 1:
             continue
         print(f'\n--------\n{vh}\n--------')
+        
+        # clusters.update(make_clusters(split_seqs[vh], vh))
 
-        if args.bucket:
+        if args.bucket == 'none':
+            clusters.update(make_clusters(split_seqs[vh], vh))
+        elif args.bucket == 'faiss':
             buckets = faiss_bucketing(split_seqs[vh], k=5)
             bucket_lengths_v = [len(bucket) for bucket in buckets]
             bucket_lengths.append(bucket_lengths_v)
@@ -276,12 +284,25 @@ def analyze_collection(coll):
             bucket_id = 1
             for bucket in buckets:
                 if len(bucket) > 1:
+                    total_seq += len(bucket)
                     clusters.update(make_clusters(bucket, vh + "_b" + str(bucket_id)))
+                else:
+                    single_bucket += len(bucket)
                 bucket_id += 1
-        else:
-            clusters.update(make_clusters(split_seqs[vh], vh))
-        
+        elif args.bucket == 'minhash':
+            lsh, mh_table = build_lsh_index(split_seqs[vh])
+            buckets = assign_to_best_bucket(split_seqs[vh], lsh, mh_table)
+            for bucket in buckets:
+                if len(bucket) > 1:
+                    total_seq += len(bucket)
+                    clusters.update(make_clusters(bucket, vh))
+                else:
+                    single_bucket += len(bucket)
     print('...done.\n')
+    
+    print(f'Total seqs considered {total_seq}\n')
+    print(f'Single bucket: {single_bucket}')
+    
     if args.update:
         print('Updating MongoDB...')
     else:

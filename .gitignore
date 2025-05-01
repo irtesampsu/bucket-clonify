@@ -1,2 +1,4 @@
 clonify-scirep2016data/
-src/__pycache__/
+dummy_code/
+igblastout/toy.tsv
+out/
