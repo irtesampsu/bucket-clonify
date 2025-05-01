@@ -1,46 +1,94 @@
-# kmer_filter.py
-
 from datasketch import MinHash, MinHashLSH
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
+import hashlib
 
-def kmerize(sequence, k=7):
-    """Generate a set of k-mers from a sequence."""
-    return {sequence[i:i+k] for i in range(len(sequence) - k + 1)}
+def get_kmers(seq, k=5):
+    return set(seq[i:i+k] for i in range(len(seq) - k + 1))
 
-def compute_sketch(seq, k=7, num_perm=128):
-    """Compute MinHash for a Seq object."""
-    kmers = kmerize(seq.junc, k)
+def compute_minhash(kmers, num_perm=128):
     m = MinHash(num_perm=num_perm)
     for kmer in kmers:
-        m.update(kmer.encode("utf8"))
-    return seq.id, m
+        m.update(kmer.encode('utf-8'))
+    return m
 
-def build_lsh_index(seqs, k=7, threshold=0.85, num_perm=128, threads=4):
-    """
-    Build an LSH index from Seq objects.
-    Returns the LSH index and a dict of {id: MinHash}.
-    """
+def build_lsh_index(seqs, k=7, num_perm=128, threshold=0.5):
     lsh = MinHashLSH(threshold=threshold, num_perm=num_perm)
-    minhashes = {}
+    mh_table = {}
+    for seq in seqs:
+        #TODO: What happens if we compute minhash on V-J or sth
+        kmers = get_kmers(seq.junc, k)
+        m = compute_minhash(kmers, num_perm)
+        
+        # key = hashlib.md5(seq.id.encode()).hexdigest()
+        lsh.insert(seq, m) #TODO: why need key? why not use seq
+        mh_table[seq.id] = m #TODO: do we need to store key and seq?
+    return lsh, mh_table
 
-    with ThreadPoolExecutor(max_workers=threads) as executor:
-        for sid, mh in executor.map(lambda s: compute_sketch(s, k, num_perm), seqs):
-            minhashes[sid] = mh
-            lsh.insert(sid, mh)
+def assign_to_best_bucket(seqs, lsh, mh_table):
+    # group seqs by their best bucket (max intersection count)
+    # bucket_map = defaultdict(list)
+    bucket_map = {}
+    bucket_key = 0
+    # seq_to_bucket_dic = {}
+    already_considered_seqs_list = []
+    # seq_length = []
+    single_entry_list = []
+    for seq in seqs:
+        # seq_length.append(len(seq.junc))
+        # For now, if some seq has already been into some bucket, we do not cosider it again
+        if seq.id in already_considered_seqs_list:
+            continue
+        else:
+            bucket_key += 1
 
-    return lsh, minhashes
+        m = mh_table[seq.id]
+        candidates = lsh.query(m)
+        if len(candidates) <= 1:
+            #TODO: We can skip this case without adding
+            # But we are getting rid of sequences which might not be a good for cluster comparison
+            # TODO: to discuss
+            # bucket_map[seq.id].append(seq)  # singleton bucket
+            single_entry_list.append(candidates[0])
+            already_considered_seqs_list.append(candidates[0].id)
+            continue
+        # we can fix the threshold when we build the index, so no filtering here
+        # best = max(candidates, key=lambda c: m.jaccard(mh_table[c][1]))
+        
+        selected_cand_list = []
+        candidates_id_list = []
+        for candidate in candidates:
+            if candidate.id not in already_considered_seqs_list:
+                selected_cand_list.append(candidate)
+                candidates_id_list.append(candidate.id)
+        
+        # candidates_id_list = [candidate.id for candidate in candidates]
+        already_considered_seqs_list += candidates_id_list
+        
 
-def get_candidate_pairs(seqs, lsh, minhashes, id_index):
-    """
-    Return a dict mapping sequence IDs to candidate similar sequence IDs.
-    """
-    candidates = defaultdict(list)
-    for s in seqs:
-        similar_ids = lsh.query(minhashes[s.id])
-        candidates[s.id] = [id_index[nid] for nid in similar_ids if nid != s.id]
-    return candidates
-
-def index_seqs_by_id(seqs):
-    """Returns a dict mapping ID to Seq object."""
-    return {s.id: s for s in seqs}
+        # for candidate in candidates: 
+            # seq_to_bucket_dic[candidate] = bucket_key
+        # print(candidates_id_list)
+        # print(len(candidates))
+        # print(candidates)
+        if len(selected_cand_list) > 1:
+            bucket_map[bucket_key] = selected_cand_list
+        else:
+            single_entry_list.append(selected_cand_list[0])
+        # print(len(bucket_map[bucket_key]))
+    # print(f'Num of seqs: {len(seqs)}')
+    # print(f'Num of buckets: {len(bucket_map.keys())}')
+    # bucket_mem_count_list = [len(bucket_map[key]) for key in bucket_map.keys()]
+    # print('Number of elements inside bucket: ', bucket_mem_count_list)
+    # print(seq_length)
+        # bucket_map[best].append(seq)
+    if(len(single_entry_list) > 1):
+        # print(f'single entry {len(single_entry_list)}')
+        bucket_map[bucket_key+1] = single_entry_list
+    elif(len(single_entry_list) == 1):
+        # only one element, instead of skipping it, adding it to the first bucket
+        # if 1 not in bucket_map.keys():
+        #     bucket_map[1] = []
+        bucket_map[1].append(single_entry_list[0])
+    bucket_mem_count_list = [len(bucket_map[key]) for key in bucket_map.keys()]
+    print('Number of elements inside bucket: ', bucket_mem_count_list)
+    return list(bucket_map.values())

@@ -242,6 +242,7 @@ def make_clusters(input_seqs, vh):
 
 
 def analyze_collection(coll):
+    from bucketing import build_lsh_index, assign_to_best_bucket
     startTime = time.time()
     print(f'\n\n========================================\nprocessing collection: {coll}\n========================================\n')
     print(f'Querying MongoDB (db: {args.db}, collection: {coll}) for the input sequences...')
@@ -254,14 +255,36 @@ def analyze_collection(coll):
         split_seqs = split_by_gene(seqs)
     elif args.split_by == 'fam':
         split_seqs = split_by_fam(seqs)
+    
+
     print('Sorting sequences into clonal families...')
     clusters = {}
+    total_seq = 0
+    single_bucket = 0
     for vh in sorted(split_seqs.keys()):
         if len(split_seqs[vh]) <= 1:
             continue
         print(f'\n--------\n{vh}\n--------')
+        # if vh == 'v4-61':
+        #     for seq in split_seqs[vh]:
+        #         print(seq.junc)
+
+        # lsh, mh_table = build_lsh_index(split_seqs[vh])
+        # buckets = assign_to_best_bucket(split_seqs[vh], lsh, mh_table)
+        # for bucket in buckets:
+        #     if len(bucket) > 1:
+        #         total_seq += len(bucket)
+        #         clusters.update(make_clusters(bucket, vh))
+        #     else:
+        #         single_bucket += len(bucket)
+        
+        total_seq += len(split_seqs[vh])
         clusters.update(make_clusters(split_seqs[vh], vh))
     print('...done.\n')
+    
+    print(f'Total seqs considered {total_seq}\n')
+    print(f'Single bucket: {single_bucket}')
+    
     if args.update:
         print('Updating MongoDB...')
     else:
