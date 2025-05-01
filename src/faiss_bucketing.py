@@ -42,8 +42,11 @@ def assign_to_buckets(index, X, seqs, top_k=1):
 def faiss_bucketing(seqs, k = 5):
     X, _ = vectorize_kmers(seqs, k)
     N = len(seqs)
-    nlist = min(int(np.sqrt(N)), max(1, N // 40))
-    nprobe = max(1, nlist // 10)
+    # nlist = min(int(np.sqrt(N)), max(1, N // 40))
+    nlist = max(1, len(seqs) // 100)
+    nprobe = max(5, nlist // 2)
+
+    # nprobe = max(1, nlist // 10)
 
     index = build_faiss_index(X, nlist=nlist, nprobe=nprobe)
     buckets = assign_to_buckets(index, X, seqs, top_k=1)

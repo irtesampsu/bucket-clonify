@@ -246,6 +246,7 @@ def make_clusters(input_seqs, vh):
 
 def analyze_collection(coll):
     startTime = time.time()
+    bucket_lengths = []
     print(f'\n\n========================================\nprocessing collection: {coll}\n========================================\n')
     print(f'Querying MongoDB (db: {args.db}, collection: {coll}) for the input sequences...')
     seqs = get_seqs(args.db, coll)
@@ -268,6 +269,10 @@ def analyze_collection(coll):
 
         if args.bucket:
             buckets = faiss_bucketing(split_seqs[vh], k=5)
+            bucket_lengths_v = [len(bucket) for bucket in buckets]
+            bucket_lengths.append(bucket_lengths_v)
+            print(f"Bucket lengths for vh: {vh}", sorted(bucket_lengths_v))
+            print(f"Total seqs:{len(split_seqs[vh])}, Buckets: {len(buckets)}, Average Bucket lengths: {sum(bucket_lengths_v) / len(bucket_lengths_v) if bucket_lengths_v else 0}")
             bucket_id = 1
             for bucket in buckets:
                 if len(bucket) > 1:
@@ -294,7 +299,7 @@ def analyze_collection(coll):
     print(f'The average cluster size was {stats[2]:.2f}.')
     print(f'The largest cluster contains {stats[3]} sequences.')
     print(f'{stats[1]} sequences were assigned to clonal families ({100.0 * stats[1] / len(seqs):.2f}%).\n\n')
-
+    return bucket_lengths
 
 def write_output(out_dir, collection, data):
     out_file = os.path.join(out_dir, collection + '_clones.txt')
@@ -311,7 +316,12 @@ def write_output(out_dir, collection, data):
 def main():
     total_start_time = time.time()
     for c in get_collections():
-        analyze_collection(c)
+        bucket_lengths = analyze_collection(c)
+        # plot histogram of bucket lengths
+        # if args.bucket:
+        #     import matplotlib.pyplot as plt
+        #     import seaborn as sns
+            
     print(f'Total execution time: {time.time() - total_start_time:.2f} seconds.')
 
 if __name__ == '__main__':
