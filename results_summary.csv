@@ -1,0 +1,17 @@
+experiment,out_dir,log_file,seconds,returncode
+baseline,out/baseline,logs/baseline.log,209.2,0
+faiss_k-5,out/faiss_k-5,logs/faiss_k-5.log,129.4,0
+faiss_k-7,out/faiss_k-7,logs/faiss_k-7.log,130.1,0
+faiss_k-9,out/faiss_k-9,logs/faiss_k-9.log,130.2,0
+minhash_k-5_n-16,out/minhash_k-5_n-16,logs/minhash_k-5_n-16.log,185.2,0
+minhash_k-5_n-32,out/minhash_k-5_n-32,logs/minhash_k-5_n-32.log,193.9,0
+minhash_k-5_n-64,out/minhash_k-5_n-64,logs/minhash_k-5_n-64.log,212.2,0
+minhash_k-7_n-16,out/minhash_k-7_n-16,logs/minhash_k-7_n-16.log,65.6,1
+minhash_k-7_n-32,out/minhash_k-7_n-32,logs/minhash_k-7_n-32.log,195.7,0
+minhash_k-7_n-64,out/minhash_k-7_n-64,logs/minhash_k-7_n-64.log,212.8,0
+minhash_k-9_n-16,out/minhash_k-9_n-16,logs/minhash_k-9_n-16.log,188.8,0
+minhash_k-9_n-32,out/minhash_k-9_n-32,logs/minhash_k-9_n-32.log,195.1,0
+minhash_k-9_n-64,out/minhash_k-9_n-64,logs/minhash_k-9_n-64.log,215.0,0
+bktree_th-3,out/bktree_th-3,logs/bktree_th-3.log,1.2,2
+bktree_th-5,out/bktree_th-5,logs/bktree_th-5.log,1.1,2
+bktree_th-7,out/bktree_th-7,logs/bktree_th-7.log,1.1,2

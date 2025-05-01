@@ -53,7 +53,7 @@ parser.add_argument('-z', '--no_split', action='store_true', default=False)
 parser.add_argument('-n', '--nt', dest='is_aa', action='store_false', default=True)
 parser.add_argument('-u', '--no_update', dest='update', action='store_false', default=True)
 parser.add_argument('-k', '--chunksize', type=int, default=500)
-parser.add_argument('-b', '--bucket', default='none', choices=['none', 'faiss', 'minhash'])  # Updated choices
+parser.add_argument('-b', '--bucket', default='none', choices=['none', 'faiss', 'minhash', 'bktree'])  # Updated choices
 parser.add_argument('--kmer', default=5, type=int)
 parser.add_argument('--nperm', default=16, type=int)
 parser.add_argument( '--threshold', default=5, type=int)
@@ -331,12 +331,14 @@ def analyze_collection(coll):
         vprint('Calculating cluster statistics...')
     stats = update_db(args.db, coll, clusters)
     vprint('...done.\n')
+    write_csv(args.output, coll, clusters)
     if args.output:
         vprint('Writing clonal families to file...')
         write_output(args.output, coll, clusters)
         vprint('...done.\n')
     else:
         vprint('No output directory was provided. Lineage assignments are not being written to file.\n')
+
     vprint(f'Querying MongoDB took {round(time.time() - startTime, 2)} seconds.')
     vprint(f"{len(seqs)} sequences were segregated into {stats[0]} clonal families.")
     vprint(f'The average cluster size was {stats[2]:.2f}.')
@@ -354,6 +356,17 @@ def write_output(out_dir, collection, data):
             for seq in seqs:
                 f.write(f'>{seq.id}\n{seq.junc}\n')
             f.write('\n')
+
+def write_csv(out_dir, collection, clusters):
+    """
+    Dump <seq_id,clone_id> so downstream metrics (e.g. eval_ari.py) can read it.
+    """
+    csv_path = os.path.join(out_dir, f"{collection}_assignments.csv")
+    with open(csv_path, "w") as fh:
+        fh.write("seq_id,clone_id\n")
+        for clone_id, seqs in clusters.items():
+            for s in seqs:                       # include singletons if you want ARI over all reads
+                fh.write(f"{s.id},{clone_id}\n")
 
 
 def main():

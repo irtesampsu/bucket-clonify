@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/home/khan/psu/cse-597-immunogenomics/project/src/clonify3.py", line 384, in <module>
+    main()
+    ~~~~^^
+  File "/home/khan/psu/cse-597-immunogenomics/project/src/clonify3.py", line 375, in main
+    bucket_lengths = analyze_collection(c)
+  File "/home/khan/psu/cse-597-immunogenomics/project/src/clonify3.py", line 314, in analyze_collection
+    buckets = assign_to_best_bucket(split_seqs[vh], lsh, mh_table)
+  File "/home/khan/psu/cse-597-immunogenomics/project/src/bucketing.py", line 70, in assign_to_best_bucket
+    bucket_map[1].append(single_entry_list[0])
+    ~~~~~~~~~~^^^
+KeyError: 1
