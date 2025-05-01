@@ -20,6 +20,7 @@ import time
 from functools import wraps
 from contextlib import contextmanager
 from faiss_bucketing import faiss_bucketing
+from bk_tree import bucket_by_bktree
 
 import pickle
 
@@ -54,8 +55,9 @@ parser.add_argument('-n', '--nt', dest='is_aa', action='store_false', default=Tr
 parser.add_argument('-u', '--no_update', dest='update', action='store_false', default=True)
 parser.add_argument('-k', '--chunksize', type=int, default=500)
 parser.add_argument('-b', '--bucket', default='none', choices=['none', 'faiss', 'minhash'])  # Updated choices
-parser.add_argument('-kmer', default=5, type=int)
-parser.add_argument('-nperm', default=16, type=int)
+parser.add_argument('--kmer', default=5, type=int)
+parser.add_argument('--nperm', default=16, type=int)
+parser.add_argument( '--threshold', default=5, type=int)
 parser.add_argument('--verbose', action='store_true', default=False) # Only print if verbose
 args = parser.parse_args()
 
@@ -297,6 +299,17 @@ def analyze_collection(coll):
                 else:
                     single_bucket += len(bucket)
                 bucket_id += 1
+        elif args.bucket == 'bktree':
+            buckets = bucket_by_bktree(split_seqs[vh], t=args.threshold)
+            bucket_id = 1
+            for b in buckets:
+                if len(b) > 1:
+                    total_seq += len(b)
+                    clusters.update(make_clusters(b, vh + "_b" + str(bucket_id)))
+                else:
+                    single_bucket += len(b)
+            bucket_id += 1
+
         elif args.bucket == 'minhash':
             lsh, mh_table = build_lsh_index(split_seqs[vh], k=args.kmer, num_perm=args.nperm)
             buckets = assign_to_best_bucket(split_seqs[vh], lsh, mh_table)
