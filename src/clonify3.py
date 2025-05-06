@@ -20,7 +20,9 @@ import time
 from functools import wraps
 from contextlib import contextmanager
 from faiss_bucketing import faiss_bucketing
+from bk_tree import bucket_by_bktree
 
+import pickle
 
 @contextmanager
 def time_block(name="Block"):
@@ -53,8 +55,9 @@ parser.add_argument('-n', '--nt', dest='is_aa', action='store_false', default=Tr
 parser.add_argument('-u', '--no_update', dest='update', action='store_false', default=True)
 parser.add_argument('-k', '--chunksize', type=int, default=500)
 parser.add_argument('-b', '--bucket', default='none', choices=['none', 'faiss', 'minhash'])  # Updated choices
-parser.add_argument('-kmer', default=5, type=int)
-parser.add_argument('-nperm', default=16, type=int)
+parser.add_argument('--kmer', default=5, type=int)
+parser.add_argument('--nperm', default=16, type=int)
+parser.add_argument( '--threshold', default=5, type=int)
 parser.add_argument('--verbose', action='store_true', default=False) # Only print if verbose
 args = parser.parse_args()
 
@@ -296,6 +299,17 @@ def analyze_collection(coll):
                 else:
                     single_bucket += len(bucket)
                 bucket_id += 1
+        elif args.bucket == 'bktree':
+            buckets = bucket_by_bktree(split_seqs[vh], t=args.threshold)
+            bucket_id = 1
+            for b in buckets:
+                if len(b) > 1:
+                    total_seq += len(b)
+                    clusters.update(make_clusters(b, vh + "_b" + str(bucket_id)))
+                else:
+                    single_bucket += len(b)
+            bucket_id += 1
+
         elif args.bucket == 'minhash':
             lsh, mh_table = build_lsh_index(split_seqs[vh], k=args.kmer, num_perm=args.nperm)
             buckets = assign_to_best_bucket(split_seqs[vh], lsh, mh_table)
@@ -320,7 +334,7 @@ def analyze_collection(coll):
     vprint('...done.\n')
     if args.output:
         vprint('Writing clonal families to file...')
-        write_output(args.output, coll, clusters)
+        write_output_modified(args.output, coll, clusters)
         vprint('...done.\n')
     else:
         vprint('No output directory was provided. Lineage assignments are not being written to file.\n')
@@ -342,6 +356,38 @@ def write_output(out_dir, collection, data):
                 f.write(f'>{seq.id}\n{seq.junc}\n')
             f.write('\n')
 
+def write_output_modified(out_dir, collection, data):
+    out_file = os.path.join(out_dir, collection + '_clones.txt')
+
+    with open(out_file, 'w') as f:
+        for c, seqs in data.items():
+            if len(seqs) < 2:
+                continue
+
+            f.write(f'#{c}\n')
+            
+            for seq in seqs:
+                f.write(f'>{seq.id}\n{seq.junc}\n')
+            
+            f.write('\n')
+    
+    assignment_file_name = os.path.join(out_dir, collection + "_clones.assign")
+
+    assignments_dict, cluster_names = dict(), set()
+
+    for cluster_name, sequences in data.items():
+        cluster_names.add(cluster_name)
+
+        for sequence in sequences:
+            assignments_dict[sequence.id] = cluster_name
+    
+    cluster_names = list(cluster_names)
+
+    for sequence_id in assignments_dict:
+        assignments_dict[sequence_id] = cluster_names.index(assignments_dict[sequence_id])
+    
+    with open(file=assignment_file_name, mode='wb') as assignment_file:
+        pickle.dump(assignments_dict, assignment_file)
 
 def main():
     total_start_time = time.time()

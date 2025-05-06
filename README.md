@@ -23,8 +23,14 @@ python -W ignore src/clonify3.py --db clonify_db --ip localhost --port 27017 --o
 ```
 For bucketing with minhash:
 ```bash
-python -W ignore src/clonify3.py --db clonify_db --ip localhost --port 27017 --out out/minhash --split_by gene --threads 20 --nt --no_update -b minhash -kmer 7 -nperm 32 > logs/log-minhash-bucketing.py 
+python -W ignore src/clonify3.py --db clonify_db --ip localhost --port 27017 --out out/minhash --split_by gene --threads 20 --nt --no_update -b minhash --kmer 7 --nperm 32 > logs/log-minhash-bucketing.py 
 ```
+For bucketing with bktree:
+```bash
+python -W ignore src/clonify3.py --db clonify_db --ip localhost --port 27017 --out out/bktree --split_by gene --threads 20 --nt --no_update -b minhash --threshold 7 > logs/log-bktree-bucketing.py 
+```
+
+
 Here, 
     - `--nt` denotes this is a neucleotide sequence rather than an amino acid sequence. 
     - `--no_update` denotes the original database will not be updated with the cluster name for each sequence.
