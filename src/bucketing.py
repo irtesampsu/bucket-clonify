@@ -12,7 +12,7 @@ def compute_minhash(kmers, num_perm=128):
         m.update(kmer.encode('utf-8'))
     return m
 
-def build_lsh_index(seqs, k=21, num_perm=128, threshold=0.8):
+def build_lsh_index(seqs, k=7, num_perm=128, threshold=0.8):
     lsh = MinHashLSH(threshold=threshold, num_perm=num_perm)
     mh_table = {}
     for seq in seqs:
@@ -68,6 +68,23 @@ def assign_to_best_bucket(seqs, lsh, mh_table):
     elif(len(single_entry_list) == 1):
         # only one element, instead of skipping it, adding it to the first bucket
         bucket_map[1].append(single_entry_list[0])
-    bucket_mem_count_list = [len(bucket_map[key]) for key in bucket_map.keys()]
+    bucket_list = list(bucket_map.values())
+    threshold = 10
+    final_buckets = []
+    seperate_bucket = []
+    for bucket in bucket_list:
+        if len(bucket) < threshold:
+            seperate_bucket += bucket
+        else:
+            final_buckets.append(bucket)
+    if len(seperate_bucket) < threshold:
+        if len(final_buckets) > 0:
+            final_buckets[-1] += seperate_bucket
+        else:
+            final_buckets.append(seperate_bucket)
+    else:
+        final_buckets.append(seperate_bucket)
+
+    bucket_mem_count_list = [len(bucket) for bucket in final_buckets]
     vprint('Number of elements inside bucket: ', bucket_mem_count_list)
-    return list(bucket_map.values())
+    return final_buckets

@@ -15,19 +15,19 @@ python src/util.py --tsv_folder igblastout/Toy/ --serverip localhost --port 2701
 To run the `clonify3.py` script, use the following command in your terminal:
 
 ```bash
-python -W ignore src/clonify3.py --db clonify_db --ip localhost --port 27017 --out out/ --split_by gene --threads 20 --nt --no_update > logs/log-wo-bucketing.py 
+python -W ignore src/clonify3.py --db clonify_db --ip localhost --port 27017 --out out/base --split_by gene --threads 20 --nt --no_update > logs/log-wo-bucketing.txt 
 ```
 For bucketing with faiss:
 ```bash
-python -W ignore src/clonify3.py --db clonify_db --ip localhost --port 27017 --out out/faiss --split_by gene --threads 20 --nt --no_update -b faiss -kmer 7 > logs/log-faiss-bucketing.py
+python -W ignore src/clonify3.py --db clonify_db --ip localhost --port 27017 --out out/faiss --split_by gene --threads 20 --nt --no_update -b faiss -kmer 7 > logs/log-faiss-bucketing.txt
 ```
 For bucketing with minhash:
 ```bash
-python -W ignore src/clonify3.py --db clonify_db --ip localhost --port 27017 --out out/minhash --split_by gene --threads 20 --nt --no_update -b minhash --kmer 7 --nperm 32 > logs/log-minhash-bucketing.py 
+python -W ignore src/clonify3.py --db clonify_db --ip localhost --port 27017 --out out/minhash --split_by gene --threads 20 --nt --no_update -b minhash --kmer 7 --nperm 32 > logs/log-minhash-bucketing.txt 
 ```
 For bucketing with bktree:
 ```bash
-python -W ignore src/clonify3.py --db clonify_db --ip localhost --port 27017 --out out/bktree --split_by gene --threads 20 --nt --no_update -b minhash --threshold 7 > logs/log-bktree-bucketing.py 
+python -W ignore src/clonify3.py --db clonify_db --ip localhost --port 27017 --out out/bktree --split_by gene --threads 20 --nt --no_update -b bktree --threshold 7 > logs/log-bktree-bucketing.txt 
 ```
 
 

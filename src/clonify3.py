@@ -65,6 +65,7 @@ args = parser.parse_args()
 def vprint(*args_, **kwargs):
     if args.verbose:
         print(*args_, **kwargs)
+
 # Set the random seed for reproducibility
 
 class Seq:
