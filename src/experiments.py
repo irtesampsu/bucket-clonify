@@ -22,25 +22,25 @@ COMMON_ARGS = [
 EXPERIMENTS = []
 
 # 1) baseline (no bucketing)
-EXPERIMENTS.append({
-    "name": "baseline",
-    "args": []
-})
+# EXPERIMENTS.append({
+#     "name": "baseline",
+#     "args": []
+# })
 
 # 2) faiss: vary kmer
-for k in [5,7,9]:
-    EXPERIMENTS.append({
-        "name": f"faiss_k-{k}",
-        "args": ["-b", "faiss", "--kmer", str(k)]
-    })
+# for k in [5,7,9]:
+#     EXPERIMENTS.append({
+#         "name": f"faiss_k-{k}",
+#         "args": ["-b", "faiss", "--kmer", str(k)]
+#     })
 
-# 3) minhash: vary kmer × nperm
-for k in [5,7,9]:
-    for nperm in [16,32,64]:
-        EXPERIMENTS.append({
-            "name": f"minhash_k-{k}_n-{nperm}",
-            "args": ["-b", "minhash", "--kmer", str(k), "--nperm", str(nperm)]
-        })
+# # 3) minhash: vary kmer × nperm
+# for k in [5,7,9]:
+#     for nperm in [16,32,64]:
+#         EXPERIMENTS.append({
+#             "name": f"minhash_k-{k}_n-{nperm}",
+#             "args": ["-b", "minhash", "--kmer", str(k), "--nperm", str(nperm)]
+#         })
 
 # 4) bktree: vary threshold
 for th in [3,5,7]:
@@ -50,7 +50,7 @@ for th in [3,5,7]:
     })
 
 # output summary file
-summary_path = Path("results_summary.csv")
+summary_path = Path("results_summary_bk.csv")
 with summary_path.open("w", newline="") as csvf:
     writer = csv.writer(csvf)
     writer.writerow(["experiment","out_dir","log_file","seconds","returncode"])

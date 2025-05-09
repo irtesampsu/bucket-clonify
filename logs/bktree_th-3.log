@@ -1,6 +1,1 @@
-usage: clonify3.py [-h] -d DB [-c COLL] [-i IP] [-p PORT] [-o OUTPUT]
-                   [-s {none,fam,gene}] [-t THREADS] [-x DISTANCE_CUTOFF] [-z]
-                   [-n] [-u] [-k CHUNKSIZE] [-b {none,faiss,minhash}]
-                   [--kmer KMER] [--nperm NPERM] [--threshold THRESHOLD]
-                   [--verbose]
-clonify3.py: error: argument -b/--bucket: invalid choice: 'bktree' (choose from none, faiss, minhash)
+Total execution time: 135.23 seconds.

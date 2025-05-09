@@ -1,0 +1,4 @@
+experiment,out_dir,log_file,seconds,returncode
+bktree_th-3,out/bktree_th-3,logs/bktree_th-3.log,137.1,0
+bktree_th-5,out/bktree_th-5,logs/bktree_th-5.log,156.2,0
+bktree_th-7,out/bktree_th-7,logs/bktree_th-7.log,139.9,0

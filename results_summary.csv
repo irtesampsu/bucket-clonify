@@ -12,6 +12,6 @@ minhash_k-7_n-64,out/minhash_k-7_n-64,logs/minhash_k-7_n-64.log,212.8,0
 minhash_k-9_n-16,out/minhash_k-9_n-16,logs/minhash_k-9_n-16.log,188.8,0
 minhash_k-9_n-32,out/minhash_k-9_n-32,logs/minhash_k-9_n-32.log,195.1,0
 minhash_k-9_n-64,out/minhash_k-9_n-64,logs/minhash_k-9_n-64.log,215.0,0
-bktree_th-3,out/bktree_th-3,logs/bktree_th-3.log,1.2,2
-bktree_th-5,out/bktree_th-5,logs/bktree_th-5.log,1.1,2
-bktree_th-7,out/bktree_th-7,logs/bktree_th-7.log,1.1,2
+bktree_th-3,out/bktree_th-3,logs/bktree_th-3.log,137.1,0
+bktree_th-5,out/bktree_th-5,logs/bktree_th-5.log,156.2,0
+bktree_th-7,out/bktree_th-7,logs/bktree_th-7.log,139.9,0
