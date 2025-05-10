@@ -4,3 +4,4 @@ igblastout/toy.tsv
 out/
 logs/
 */__pycache__/
+igblastout/

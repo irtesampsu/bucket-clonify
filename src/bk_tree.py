@@ -74,8 +74,12 @@ def bucket_by_bktree(seqs, t=3):
     for s in seqs:
         if s.id in visited:
             continue
-        bucket = tree.query(s.junc, t)
-        for x in bucket:
-            visited.add(x.id)
+        candidates = tree.query(s.junc, t)
+        bucket = []
+        for x in candidates:
+            if x.id not in visited:
+                # mark all candidates as visited
+                visited.add(x.id)
+                bucket.append(x)        
         buckets.append(bucket)
     return buckets

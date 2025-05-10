@@ -1,0 +1,13 @@
+experiment,out_dir,log_file,seconds,returncode
+baseline_n10000,out/SRR8283831/baseline_n10000,logs/SRR8283831/baseline_n10000.log,49.7,0
+bktree_th7_n10000,out/SRR8283831/bktree_th7_n10000,logs/SRR8283831/bktree_th7_n10000.log,32.8,0
+baseline_n20000,out/SRR8283831/baseline_n20000,logs/SRR8283831/baseline_n20000.log,116.7,0
+bktree_th7_n20000,out/SRR8283831/bktree_th7_n20000,logs/SRR8283831/bktree_th7_n20000.log,85.9,0
+baseline_n30000,out/SRR8283831/baseline_n30000,logs/SRR8283831/baseline_n30000.log,204.2,0
+bktree_th7_n30000,out/SRR8283831/bktree_th7_n30000,logs/SRR8283831/bktree_th7_n30000.log,137.0,0
+baseline_n40000,out/SRR8283831/baseline_n40000,logs/SRR8283831/baseline_n40000.log,341.8,0
+bktree_th7_n40000,out/SRR8283831/bktree_th7_n40000,logs/SRR8283831/bktree_th7_n40000.log,193.5,0
+baseline_n50000,out/SRR8283831/baseline_n50000,logs/SRR8283831/baseline_n50000.log,513.4,0
+bktree_th7_n50000,out/SRR8283831/bktree_th7_n50000,logs/SRR8283831/bktree_th7_n50000.log,264.8,0
+baseline_n60000,out/SRR8283831/baseline_n60000,logs/SRR8283831/baseline_n60000.log,746.1,0
+bktree_th7_n60000,out/SRR8283831/bktree_th7_n60000,logs/SRR8283831/bktree_th7_n60000.log,335.1,0

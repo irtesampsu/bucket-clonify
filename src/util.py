@@ -3,6 +3,8 @@ import argparse
 import csv
 from pymongo import MongoClient
 
+MAX_ROWS = 70000
+
 def config_db(serverip = "localhost",port=27017, db_name = "clonify_db", collection_name = "antibodies_7k"):
     # Parameters
     client = MongoClient(serverip, port)
@@ -11,7 +13,13 @@ def config_db(serverip = "localhost",port=27017, db_name = "clonify_db", collect
     # Check if the collection exists
     if collection_name in db.list_collection_names():
         print(f"Collection {collection_name} already exists.")
-        db.drop_collection(collection_name)
+        if collection_name == "SRR8283831":
+            # Drop the collection if it exists
+            print(f"Dropping collection {collection_name}...")
+            db.drop_collection(collection_name)
+            # Uncomment the next line to drop the collection
+        # db.drop_collection(collection_name)
+        return client, collection
         print(f"Collection {collection_name} dropped.")
 
     return client, collection
@@ -36,7 +44,11 @@ def load_airr_data(tsv_path, collection):
     row_processed = 0
     skipped_rows = 0
     with open(tsv_path, 'r') as f:
-        reader = csv.DictReader(f, delimiter='\t')
+        if tsv_path.endswith('.csv'):
+            reader = csv.DictReader(f, delimiter=',')
+        else:
+            reader = csv.DictReader(f, delimiter='\t')
+            
         for row in reader:
             v_gene_first = row['v_call'].split(',')[0].strip()
             j_gene_first = row['j_call'].split(',')[0].strip()
@@ -49,7 +61,7 @@ def load_airr_data(tsv_path, collection):
                 skipped_rows += 1
                 continue
             doc = {
-                'seq_id': row['sequence_id'],
+                'seq_id': row['sequence_id'] if 'sequence_id' in row else str(row_processed),
                 'v_gene': {'full': v_gene_first},
                 'j_gene': {'full': j_gene_first},
                 'junc_aa': row.get('junction_aa', ''),
@@ -57,12 +69,15 @@ def load_airr_data(tsv_path, collection):
                 'var_muts_nt': {
                     'muts': get_nt_mutations(row['sequence_alignment'], row['germline_alignment'])
                 },
-                'chain': row.get('locus', 'heavy')
+                'chain': row.get('chain', 'IGH'),
             }
             collection.insert_one(doc)
             row_processed += 1
             if row_processed % 1000 == 0:
                 print(f"Processed {row_processed} rows...")
+            
+            if row_processed >= 70000:
+                break
 
     print(f"Finished processing. Total rows processed: {row_processed}, skipped rows: {skipped_rows}")
     
@@ -89,7 +104,7 @@ def main():
         print(f"Directory {tsv_folder} does not exist.")
         return
     # Get all tsv files from tsv_folder
-    tsv_files = [f for f in os.listdir(tsv_folder) if f.endswith('.tsv')]
+    tsv_files = [f for f in os.listdir(tsv_folder) if f.endswith('.tsv') or f.endswith('.csv')] 
     if not tsv_files:
         print(f"No TSV files found in {tsv_folder}.")
         return
@@ -97,6 +112,9 @@ def main():
     for tsv_file in tsv_files:
         collection_name = tsv_file.split('.')[0]
         client, collection = config_db(serverip, port, db_name, collection_name)
+        if collection is None:
+            print(f"Collection {collection_name} already exists. Skipping...")
+            continue
         print(f"Connected to MongoDB at {serverip}:{port}, database: {db_name}, collection: {collection_name}")
         tsv_path = os.path.join(tsv_folder, tsv_file)
         load_airr_data(tsv_path, collection)

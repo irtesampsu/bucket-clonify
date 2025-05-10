@@ -22,7 +22,7 @@ from contextlib import contextmanager
 from faiss_bucketing import faiss_bucketing
 from bk_tree import bucket_by_bktree
 
-import pickle
+import random
 
 @contextmanager
 def time_block(name="Block"):
@@ -59,6 +59,12 @@ parser.add_argument('--kmer', default=5, type=int)
 parser.add_argument('--nperm', default=16, type=int)
 parser.add_argument( '--threshold', default=5, type=int)
 parser.add_argument('--verbose', action='store_true', default=False) # Only print if verbose
+# add this argument
+parser.add_argument('--sample-size', type=int, default=None,
+                    help="If set, randomly sample this many IGH sequences from each collection")
+parser.add_argument('--seed', type=int, default=42,
+                    help="Random seed for sampling sequences")
+
 args = parser.parse_args()
 
 
@@ -137,11 +143,51 @@ def sharedMuts(i, j):
 
 def get_seqs(database, collection):
     conn = MongoClient(args.ip, args.port)
-    db = conn[database]
-    c = db[collection]
+    db   = conn[database]
+    c    = db[collection]
     junc_query = 'junc_aa' if args.is_aa else 'junc_nt'
-    results = c.find({'chain': 'IGH'}, {'_id': 0, 'seq_id': 1, 'v_gene': 1, 'j_gene': 1, junc_query: 1, 'var_muts_nt': 1})
-    return [Seq(r, junc_query) for r in results if r and junc_query in r]
+
+    if args.sample_size:
+        # 1) grab _all_ seq_ids
+        id_cursor = c.find(
+            {'chain': 'IGH'},
+            {'_id': 0, 'seq_id': 1}
+        )
+        all_ids = [d['seq_id'] for d in id_cursor]
+        print(f"Found {len(all_ids)} IGH sequences in collection {collection}.")
+        # 2) seed + take a Python‐level sample
+        random.seed(args.seed)
+        sampled_ids = set(random.sample(all_ids, args.sample_size))
+
+        # 3) fetch exactly those docs
+        proj = {
+            '_id': 0,
+            'seq_id': 1,
+            'v_gene': 1,
+            'j_gene': 1,
+            junc_query: 1,
+            'var_muts_nt': 1
+        }
+        cursor = c.find(
+            {'chain': 'IGH', 'seq_id': {'$in': list(sampled_ids)}},
+            proj
+        )
+    else:
+        cursor = c.find(
+            {'chain': 'IGH'},
+            {
+                '_id': 0,
+                'seq_id': 1,
+                'v_gene': 1,
+                'j_gene': 1,
+                junc_query: 1,
+                'var_muts_nt': 1
+            }
+        )
+
+    seqs = [Seq(r, junc_query) for r in cursor if r and junc_query in r]
+    vprint(f"Retrieved {len(seqs)} sequences (sample_size={args.sample_size}, seed={args.seed})")
+    return seqs
 
 
 def get_collections():
@@ -237,6 +283,11 @@ def squareform(matrix):
 def make_clusters(input_seqs, vh):
     chunksize = get_chunksize(input_seqs)
     vprint(f'Chunksize is: {chunksize}')
+
+    if chunksize == 1:
+        vprint('Only one sequence in this collection. No clustering performed.')
+        return {f'lineage_{vh}_1': input_seqs}
+
     chunks = chunk_maker(chunksize, input_seqs)
     iter_chunks = itertools.product(chunks, repeat=2)
     distMatrix = build_matrix(iter_chunks, chunksize, len(input_seqs), len(chunks))
@@ -286,42 +337,35 @@ def analyze_collection(coll):
 
         if args.bucket == 'none':
             clusters.update(make_clusters(split_seqs[vh], vh))
-        elif args.bucket == 'faiss':
-            buckets = faiss_bucketing(split_seqs[vh], k=args.kmer)
-            bucket_lengths_v = [len(bucket) for bucket in buckets]
-            bucket_lengths.append(bucket_lengths_v)
-            vprint(f"Bucket lengths for vh: {vh}", sorted(bucket_lengths_v))
-            vprint(f"Total seqs:{len(split_seqs[vh])}, Buckets: {len(buckets)}, Average Bucket lengths: {sum(bucket_lengths_v) / len(bucket_lengths_v) if bucket_lengths_v else 0}")
-            bucket_id = 1
-            for bucket in buckets:
-                if len(bucket) > 1:
-                    total_seq += len(bucket)
-                    clusters.update(make_clusters(bucket, vh + "_b" + str(bucket_id)))
-                else:
-                    single_bucket += len(bucket)
-                bucket_id += 1
-        elif args.bucket == 'bktree':
-            buckets = bucket_by_bktree(split_seqs[vh], t=args.threshold)
-            bucket_id = 1
-            for b in buckets:
-                if len(b) > 1:
-                    total_seq += len(b)
-                    clusters.update(make_clusters(b, vh + "_b" + str(bucket_id)))
-                else:
-                    single_bucket += len(b)
-            bucket_id += 1
+        else:
+            if args.bucket == 'faiss':
+                buckets = faiss_bucketing(split_seqs[vh], k=args.kmer)
+                bucket_lengths_v = [len(bucket) for bucket in buckets]
+                bucket_lengths.append(bucket_lengths_v)
+                # vprint(f"Bucket lengths for vh: {vh}", sorted(bucket_lengths_v))
+                # vprint(f"Total seqs:{len(split_seqs[vh])}, Buckets: {len(buckets)}, Average Bucket lengths: {sum(bucket_lengths_v) / len(bucket_lengths_v) if bucket_lengths_v else 0}")
 
-        elif args.bucket == 'minhash':
-            lsh, mh_table = build_lsh_index(split_seqs[vh], k=args.kmer, num_perm=args.nperm)
-            buckets = assign_to_best_bucket(split_seqs[vh], lsh, mh_table)
+            elif args.bucket == 'bktree':
+                buckets = bucket_by_bktree(split_seqs[vh], t=args.threshold)
+                bucket_lengths_v = [len(bucket) for bucket in buckets]
+                bucket_lengths.append(bucket_lengths_v)
+                # vprint(f"Bucket lengths for vh: {vh}", sorted(bucket_lengths_v))
+                # vprint(f"Total seqs:{len(split_seqs[vh])}, Buckets: {len(buckets)}, Average Bucket lengths: {sum(bucket_lengths_v) / len(bucket_lengths_v) if bucket_lengths_v else 0}")
+
+            elif args.bucket == 'minhash':
+                lsh, mh_table = build_lsh_index(split_seqs[vh], k=args.kmer, num_perm=args.nperm)
+                buckets = assign_to_best_bucket(split_seqs[vh], lsh, mh_table)
+           
             bucket_id = 1
             for bucket in buckets:
                 if len(bucket) > 1:
                     total_seq += len(bucket)
                     clusters.update(make_clusters(bucket, vh + "_b" + str(bucket_id)))
                 else:
+                    clusters.update(make_clusters(bucket, vh + "_b" + str(bucket_id)))
                     single_bucket += len(bucket)
                 bucket_id += 1
+
     vprint('...done.\n')
     
     vprint(f'Total seqs considered {total_seq}\n')
